@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Unified Daily Planner</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Inter font from Google Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        h1, h2 {
+            font-family: 'Amiri', serif;
+        }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .tab-button.active {
+            @apply border-b-2 border-indigo-500 text-indigo-700 font-semibold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="flex flex-col items-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-green-500"></div>
+            <p class="mt-4 text-white text-lg">Loading...</p>
+        </div>
+    </div>
+
+    <div class="w-full max-w-4xl bg-white rounded-lg shadow-xl p-6 md:p-8">
+        <!-- Header Section -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-4 md:mb-0">Vəzifələrim & Jurnal</h1>
+            <div class="text-sm text-gray-500 text-center md:text-right">
+                <p>User ID: <span id="user-id" class="font-mono text-xs">Loading...</span></p>
+                <p>Date: <span id="current-date"></span></p>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-200 mb-6 custom-scrollbar overflow-x-auto">
+            <button class="tab-button p-4 text-gray-600 hover:text-indigo-700 active" data-tab="planner">Daily Planner</button>
+            <button class="tab-button p-4 text-gray-600 hover:text-indigo-700" data-tab="weekly">Weekly Planner</button>
+            <button class="tab-button p-4 text-gray-600 hover:text-indigo-700" data-tab="journal">Journal</button>
+            <button class="tab-button p-4 text-gray-600 hover:text-indigo-700" data-tab="progress">Progress</button>
+        </div>
+
+        <!-- Tab Content -->
+        <main>
+            <!-- Daily Planner Tab -->
+            <div id="planner" class="tab-content">
+                <div class="space-y-6">
+                    <!-- Progress Section -->
+                    <div class="bg-gray-50 rounded-lg p-6 shadow-sm">
+                        <h2 class="text-2xl font-bold mb-4">Daily Progress</h2>
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold">Dini Vəzifələr</h3>
+                            <div class="w-full bg-gray-200 rounded-full h-4">
+                                <div id="diniProgressBar" class="bg-green-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2"><span id="completedDiniTasksCount">0</span> of <span id="totalDiniTasksCount">0</span> completed</p>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold">Dünyəvi Vəzifələr</h3>
+                            <div class="w-full bg-gray-200 rounded-full h-4">
+                                <div id="dunyeviProgressBar" class="bg-blue-500 h-4 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2"><span id="completedDunyeviTasksCount">0</span> of <span id="totalDunyeviTasksCount">0</span> completed</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Daily Tasks Section -->
+                    <div class="bg-gray-50 rounded-lg p-6 shadow-sm">
+                        <h2 class="text-2xl font-bold mb-4">Gündəlik Vəzifələr</h2>
+                        <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                            <input id="newDailyTaskInput" type="text" placeholder="Add a new task..." class="flex-grow p-2 border border-gray-300 rounded-md">
+                            <select id="newDailyTaskCategory" class="p-2 border border-gray-300 rounded-md">
+                                <option value="dini">Dini</option>
+                                <option value="dunyevi">Dünyəvi</option>
+                            </select>
+                            <button id="addDailyTaskBtn" class="bg-indigo-500 text-white p-2 rounded-md hover:bg-indigo-600">Add</button>
+                        </div>
+                        <ul id="daily-tasks-list" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar"></ul>
+                    </div>
+
+                    <!-- Streak Tracker Section -->
+                    <div class="bg-gray-50 rounded-lg p-6 shadow-sm">
+                        <h2 class="text-2xl font-bold mb-4">Streak Tracker</h2>
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="text-lg">Daily Streak: <span id="current-streak" class="font-bold text-indigo-600">0</span></p>
+                            <div class="flex items-center gap-2">
+                                <label for="days-select" class="text-sm text-gray-600">Days per week:</label>
+                                <select id="days-select" class="p-1 border border-gray-300 rounded-md text-sm">
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7" selected>7</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <p class="text-lg">Completion Threshold: </p>
+                            <input id="threshold-input" type="number" min="0" max="100" class="w-16 p-1 border border-gray-300 rounded-md text-sm text-center" value="100">%
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">Complete at least <span id="threshold-display" class="font-semibold">100%</span> of your daily tasks to maintain your streak.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weekly Planner Tab -->
+            <div id="weekly" class="tab-content hidden">
+                <div class="space-y-6">
+                    <div class="bg-gray-50 rounded-lg p-6 shadow-sm">
+                        <h2 class="text-2xl font-bold mb-4">Həftəlik Vəzifələr</h2>
+                        <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                            <input id="newWeeklyTaskInput" type="text" placeholder="Add a new weekly task..." class="flex-grow p-2 border border-gray-300 rounded-md">
+                            <select id="newWeeklyTaskCategory" class="p-2 border border-gray-300 rounded-md">
+                                <option value="dini">Dini</option>
+                                <option value="dunyevi">Dünyəvi</option>
+                            </select>
+                            <button id="addWeeklyTaskBtn" class="bg-indigo-500 text-white p-2 rounded-md hover:bg-indigo-600">Add</button>
+                        </div>
+                        <ul id="weekly-tasks-list" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Journal Tab -->
+            <div id="journal" class="tab-content hidden">
+                <div class="space-y-6">
+                    <div class="bg-gray-50 rounded-lg p-6 shadow-sm">
+                        <h2 class="text-2xl font-bold mb-4">Jurnal</h2>
+                        <div class="journal-entry space-y-4">
+                            <div>
+                                <h3 class="text-lg font-semibold">What did I learn with devotion (İxlas)?</h3>
+                                <textarea id="ixlasJournal" rows="3" class="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold">Today's most important worldly achievement:</h3>
+                                <textarea id="dunyeviNailJournal" rows="3" class="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold">A moment I was thankful for:</h3>
+                                <textarea id="sukrAnJournal" rows="3" class="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-semibold">Dua or Ayah:</h3>
+                                <textarea id="duaJournal" rows="3" class="w-full p-2 border border-gray-300 rounded-md"></textarea>
+                            </div>
+                            <button id="saveJournalBtn" class="w-full bg-green-500 text-white p-2 rounded-md hover:bg-green-600">Save Journal Entry</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Tab -->
+            <div id="progress" class="tab-content hidden">
+                <div class="bg-gray-50 rounded-lg p-6 shadow-sm">
+                    <h2 id="chart-title" class="text-2xl font-bold mb-4 text-center">Weekly Progress (Last 4 Weeks)</h2>
+                    <canvas id="progressChart"></canvas>
+                    <div class="flex justify-center gap-4 mt-4">
+                        <button class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300" onclick="updateChartView('daily')">Daily</button>
+                        <button class="bg-indigo-500 text-white px-4 py-2 rounded-md hover:bg-indigo-600" onclick="updateChartView('weekly')">Weekly</button>
+                        <button class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300" onclick="updateChartView('monthly')">Monthly</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, where, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Global Variables and DOM Elements ---
+        let app;
+        let db;
+        let auth;
+        let userId;
+        let appId; // Moved to global scope
+        let chartInstance;
+        let globalData = {
+            dailyTasks: [],
+            weeklyTasks: [],
+            journalEntries: [],
+            streaks: {
+                currentStreak: 0,
+                lastCompletionDate: null,
+                selectedDays: 7,
+                threshold: 100
+            }
+        };
+
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const currentDateElem = document.getElementById('current-date');
+        const userIdElem = document.getElementById('user-id');
+        const dailyTasksList = document.getElementById('daily-tasks-list');
+        const weeklyTasksList = document.getElementById('weekly-tasks-list');
+        const completedDiniCountElem = document.getElementById('completedDiniTasksCount');
+        const totalDiniCountElem = document.getElementById('totalDiniTasksCount');
+        const completedDunyeviCountElem = document.getElementById('completedDunyeviTasksCount');
+        const totalDunyeviCountElem = document.getElementById('totalDunyeviTasksCount');
+        const diniProgressBar = document.getElementById('diniProgressBar');
+        const dunyeviProgressBar = document.getElementById('dunyeviProgressBar');
+        const currentStreakElem = document.getElementById('current-streak');
+        const daysSelect = document.getElementById('days-select');
+        const thresholdInput = document.getElementById('threshold-input');
+        const thresholdDisplay = document.getElementById('threshold-display');
+        const ixlasJournal = document.getElementById('ixlasJournal');
+        const dunyeviNailJournal = document.getElementById('dunyeviNailJournal');
+        const sukrAnJournal = document.getElementById('sukrAnJournal');
+        const duaJournal = document.getElementById('duaJournal');
+
+        // --- Helper Functions ---
+        const showLoading = () => loadingIndicator.classList.remove('hidden');
+        const hideLoading = () => loadingIndicator.classList.add('hidden');
+        const formatDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const getWeekNumber = (d) => {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        };
+        const getMonthKey = (d) => d.toISOString().slice(0, 7);
+
+        // --- Firebase Initialization and Auth ---
+        const initializeFirebase = async () => {
+            showLoading();
+            try {
+                // Mandatory global variables for Canvas environment
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Authenticate with custom token or anonymously
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                // Listen for auth state changes to get user ID
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdElem.textContent = userId;
+                        setupFirestoreListeners();
+                    } else {
+                        console.error("User not authenticated.");
+                    }
+                    hideLoading();
+                });
+                
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                hideLoading();
+            }
+        };
+
+        // --- Firestore Data Operations ---
+        const setupFirestoreListeners = () => {
+            if (!userId) return;
+
+            // Daily Tasks Listener
+            const dailyTasksRef = collection(db, `artifacts/${appId}/users/${userId}/dailyTasks`);
+            onSnapshot(dailyTasksRef, (snapshot) => {
+                globalData.dailyTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderDailyTasks();
+                updateProgressBars();
+                checkAndUpdateStreak();
+            });
+
+            // Weekly Tasks Listener
+            const weeklyTasksRef = collection(db, `artifacts/${appId}/users/${userId}/weeklyTasks`);
+            onSnapshot(weeklyTasksRef, (snapshot) => {
+                globalData.weeklyTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderWeeklyTasks();
+            });
+
+            // Journal Entries Listener
+            const journalEntriesRef = collection(db, `artifacts/${appId}/users/${userId}/journalEntries`);
+            onSnapshot(journalEntriesRef, (snapshot) => {
+                globalData.journalEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProgressCharts();
+            });
+
+            // Streaks Listener
+            const streaksDocRef = doc(db, `artifacts/${appId}/users/${userId}/appState/streaks`);
+            onSnapshot(streaksDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    globalData.streaks = { ...globalData.streaks, ...docSnap.data() };
+                }
+                renderStreakInfo();
+            });
+        };
+
+        const addDailyTask = async () => {
+            const input = document.getElementById('newDailyTaskInput');
+            const category = document.getElementById('newDailyTaskCategory').value;
+            const text = input.value.trim();
+            if (text === '') return;
+
+            await addDoc(collection(db, `artifacts/${appId}/users/${userId}/dailyTasks`), {
+                text,
+                category,
+                completed: false,
+                createdAt: serverTimestamp()
+            });
+
+            input.value = '';
+        };
+
+        const toggleDailyTaskCompletion = async (taskId, completed) => {
+            const taskRef = doc(db, `artifacts/${appId}/users/${userId}/dailyTasks`, taskId);
+            await updateDoc(taskRef, { completed: !completed });
+        };
+
+        const deleteDailyTask = async (taskId) => {
+            const taskRef = doc(db, `artifacts/${appId}/users/${userId}/dailyTasks`, taskId);
+            await deleteDoc(taskRef);
+        };
+        
+        const addWeeklyTask = async () => {
+            const input = document.getElementById('newWeeklyTaskInput');
+            const category = document.getElementById('newWeeklyTaskCategory').value;
+            const text = input.value.trim();
+            if (text === '') return;
+
+            await addDoc(collection(db, `artifacts/${appId}/users/${userId}/weeklyTasks`), {
+                text,
+                category,
+                completed: false,
+                createdAt: serverTimestamp()
+            });
+
+            input.value = '';
+        };
+
+        const toggleWeeklyTaskCompletion = async (taskId, completed) => {
+            const taskRef = doc(db, `artifacts/${appId}/users/${userId}/weeklyTasks`, taskId);
+            await updateDoc(taskRef, { completed: !completed });
+        };
+
+        const deleteWeeklyTask = async (taskId) => {
+            const taskRef = doc(db, `artifacts/${appId}/users/${userId}/weeklyTasks`, taskId);
+            await deleteDoc(taskRef);
+        };
+
+        const saveJournalEntry = async () => {
+            const today = new Date().toISOString().split('T')[0];
+            const allTasks = globalData.dailyTasks;
+            const totalTasks = allTasks.length;
+            const completedTasks = allTasks.filter(task => task.completed).length;
+
+            const entry = {
+                ixlas: ixlasJournal.value,
+                dunyeviNail: dunyeviNailJournal.value,
+                sukrAn: sukrAnJournal.value,
+                dua: duaJournal.value,
+                date: today,
+                totalTasks,
+                completedTasks,
+                createdAt: serverTimestamp()
+            };
+
+            await addDoc(collection(db, `artifacts/${appId}/users/${userId}/journalEntries`), entry);
+            
+            // Clear inputs
+            ixlasJournal.value = '';
+            dunyeviNailJournal.value = '';
+            sukrAnJournal.value = '';
+            duaJournal.value = '';
+            
+            alert('Journal entry saved!');
+        };
+
+        const saveStreakData = async () => {
+            const streaksDocRef = doc(db, `artifacts/${appId}/users/${userId}/appState/streaks`);
+            await setDoc(streaksDocRef, globalData.streaks);
+        };
+
+        // --- UI Rendering Functions ---
+        const renderDailyTasks = () => {
+            dailyTasksList.innerHTML = '';
+            globalData.dailyTasks.sort((a, b) => a.createdAt?.seconds - b.createdAt?.seconds).forEach(task => {
+                const listItem = document.createElement('li');
+                listItem.className = `flex items-center justify-between p-3 rounded-md shadow-sm ${task.completed ? 'bg-green-100' : 'bg-gray-100'}`;
+                listItem.innerHTML = `
+                    <div class="flex items-center flex-grow">
+                        <input type="checkbox" class="h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500" ${task.completed ? 'checked' : ''} onclick="toggleDailyTaskCompletion('${task.id}', ${task.completed})">
+                        <span class="ml-3 text-lg ${task.completed ? 'line-through text-gray-500' : 'text-gray-800'}">${task.text}</span>
+                        <span class="ml-auto text-xs text-white rounded-full px-2 py-1 ${task.category === 'dini' ? 'bg-green-600' : 'bg-blue-600'}">${task.category}</span>
+                    </div>
+                    <button onclick="deleteDailyTask('${task.id}')" class="ml-4 text-red-500 hover:text-red-700">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+                dailyTasksList.appendChild(listItem);
+            });
+        };
+
+        const renderWeeklyTasks = () => {
+            weeklyTasksList.innerHTML = '';
+            globalData.weeklyTasks.sort((a, b) => a.createdAt?.seconds - b.createdAt?.seconds).forEach(task => {
+                const listItem = document.createElement('li');
+                listItem.className = `flex items-center justify-between p-3 rounded-md shadow-sm ${task.completed ? 'bg-green-100' : 'bg-gray-100'}`;
+                listItem.innerHTML = `
+                    <div class="flex items-center flex-grow">
+                        <input type="checkbox" class="h-5 w-5 text-indigo-600 rounded focus:ring-indigo-500" ${task.completed ? 'checked' : ''} onclick="toggleWeeklyTaskCompletion('${task.id}', ${task.completed})">
+                        <span class="ml-3 text-lg ${task.completed ? 'line-through text-gray-500' : 'text-gray-800'}">${task.text}</span>
+                        <span class="ml-auto text-xs text-white rounded-full px-2 py-1 ${task.category === 'dini' ? 'bg-green-600' : 'bg-blue-600'}">${task.category}</span>
+                    </div>
+                    <button onclick="deleteWeeklyTask('${task.id}')" class="ml-4 text-red-500 hover:text-red-700">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+                weeklyTasksList.appendChild(listItem);
+            });
+        };
+
+        const updateProgressBars = () => {
+            const diniTasks = globalData.dailyTasks.filter(task => task.category === 'dini');
+            const completedDini = diniTasks.filter(task => task.completed).length;
+            const totalDini = diniTasks.length;
+            const diniProgress = totalDini > 0 ? (completedDini / totalDini) * 100 : 0;
+            
+            const dunyeviTasks = globalData.dailyTasks.filter(task => task.category === 'dunyevi');
+            const completedDunyevi = dunyeviTasks.filter(task => task.completed).length;
+            const totalDunyevi = dunyeviTasks.length;
+            const dunyeviProgress = totalDunyevi > 0 ? (completedDunyevi / totalDunyevi) * 100 : 0;
+
+            completedDiniCountElem.textContent = completedDini;
+            totalDiniCountElem.textContent = totalDini;
+            diniProgressBar.style.width = `${diniProgress}%`;
+
+            completedDunyeviCountElem.textContent = completedDunyevi;
+            totalDunyeviCountElem.textContent = totalDunyevi;
+            dunyeviProgressBar.style.width = `${dunyeviProgress}%`;
+        };
+
+        const renderStreakInfo = () => {
+            currentStreakElem.textContent = globalData.streaks.currentStreak;
+            daysSelect.value = globalData.streaks.selectedDays;
+            thresholdInput.value = globalData.streaks.threshold;
+            thresholdDisplay.textContent = `${globalData.streaks.threshold}%`;
+        };
+        
+        const checkAndUpdateStreak = () => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayISO = today.toISOString().split('T')[0];
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayISO = yesterday.toISOString().split('T')[0];
+
+            let lastCompletionDate = globalData.streaks.lastCompletionDate;
+            let currentStreak = globalData.streaks.currentStreak;
+            const threshold = globalData.streaks.threshold;
+
+            const allTasks = globalData.dailyTasks;
+            const totalTasks = allTasks.length;
+            const completedTasks = allTasks.filter(task => task.completed).length;
+            const completionPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+            if (lastCompletionDate === todayISO) {
+                // Streak already checked for today
+                return;
+            }
+
+            if (completionPercentage >= threshold && lastCompletionDate === yesterdayISO) {
+                // Successful completion and consecutive
+                currentStreak += 1;
+                lastCompletionDate = todayISO;
+            } else if (completionPercentage >= threshold && lastCompletionDate !== yesterdayISO) {
+                // Successful completion, but streak broken or new
+                currentStreak = 1;
+                lastCompletionDate = todayISO;
+            } else if (completionPercentage < threshold && lastCompletionDate === yesterdayISO) {
+                // Failed to meet threshold, but yesterday was successful, streak breaks
+                currentStreak = 0;
+            }
+            
+            // Update global data and save
+            globalData.streaks.currentStreak = currentStreak;
+            globalData.streaks.lastCompletionDate = lastCompletionDate;
+            saveStreakData();
+            renderStreakInfo();
+        };
+
+        // --- Chart.js Rendering ---
+        const renderProgressCharts = (view = 'weekly') => {
+            const history = globalData.journalEntries;
+            let labels = [];
+            let completed = [];
+            let total = [];
+            let title = '';
+
+            const filteredHistory = history.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            const today = new Date();
+            const todayISO = today.toISOString().split('T')[0];
+
+            // If today's tasks are not saved as a journal entry, use current daily tasks for the chart
+            if (!filteredHistory.some(e => e.date === todayISO)) {
+                const totalTasks = globalData.dailyTasks.length;
+                const completedTasks = globalData.dailyTasks.filter(task => task.completed).length;
+                if (totalTasks > 0) {
+                    filteredHistory.push({
+                        date: todayISO,
+                        totalTasks,
+                        completedTasks
+                    });
+                }
+            }
+
+            if (view === 'daily') {
+                title = 'Daily Progress (Last 7 Days)';
+                const days = {};
+                filteredHistory.slice(-7).forEach(d => {
+                    days[d.date] = { completed: d.completedTasks, total: d.totalTasks };
+                });
+                labels = Object.keys(days);
+                completed = labels.map(k => days[k].completed);
+                total = labels.map(k => days[k].total);
+            } else if (view === 'weekly') {
+                title = 'Weekly Progress (Last 4 Weeks)';
+                const weeks = {};
+                filteredHistory.forEach(d => {
+                    const date = new Date(d.date);
+                    const weekKey = `${date.getFullYear()}-W${getWeekNumber(date)}`;
+                    if (!weeks[weekKey]) {
+                        weeks[weekKey] = { completed: 0, total: 0 };
+                    }
+                    weeks[weekKey].completed += d.completedTasks;
+                    weeks[weekKey].total += d.totalTasks;
+                });
+                const weekKeys = Object.keys(weeks).sort().slice(-4);
+                labels = weekKeys.map(k => `Week ${k.split('-W')[1]}`);
+                completed = weekKeys.map(k => weeks[k].completed);
+                total = weekKeys.map(k => weeks[k].total);
+            } else if (view === 'monthly') {
+                title = 'Monthly Progress (Last 6 Months)';
+                const months = {};
+                filteredHistory.forEach(d => {
+                    const monthKey = d.date.slice(0, 7);
+                    if (!months[monthKey]) {
+                        months[monthKey] = { completed: 0, total: 0 };
+                    }
+                    months[monthKey].completed += d.completedTasks;
+                    months[monthKey].total += d.totalTasks;
+                });
+                const monthKeys = Object.keys(months).sort().slice(-6);
+                labels = monthKeys.map(k => k);
+                completed = monthKeys.map(k => months[k].completed);
+                total = monthKeys.map(k => months[k].total);
+            }
+
+            document.getElementById('chart-title').textContent = title;
+
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Completed Tasks',
+                            data: completed,
+                            backgroundColor: 'rgba(76, 175, 80, 0.6)',
+                            borderColor: 'rgba(76, 175, 80, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Total Tasks',
+                            data: total,
+                            backgroundColor: 'rgba(159, 165, 174, 0.6)',
+                            borderColor: 'rgba(159, 165, 174, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: Math.max(...total) + 1,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        // --- Event Listeners and Initial Setup ---
+        const switchTab = (tabId) => {
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+            document.getElementById(tabId).classList.remove('hidden');
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            if (tabId === 'progress') {
+                renderProgressCharts('weekly');
+            }
+        };
+
+        window.updateChartView = renderProgressCharts;
+        window.toggleDailyTaskCompletion = toggleDailyTaskCompletion;
+        window.deleteDailyTask = deleteDailyTask;
+        window.toggleWeeklyTaskCompletion = toggleWeeklyTaskCompletion;
+        window.deleteWeeklyTask = deleteWeeklyTask;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            currentDateElem.textContent = formatDate(new Date());
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => switchTab(button.dataset.tab));
+            });
+
+            // Daily Planner listeners
+            document.getElementById('addDailyTaskBtn').addEventListener('click', addDailyTask);
+            document.getElementById('newDailyTaskInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addDailyTask();
+            });
+
+            // Weekly Planner listeners
+            document.getElementById('addWeeklyTaskBtn').addEventListener('click', addWeeklyTask);
+            document.getElementById('newWeeklyTaskInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addWeeklyTask();
+            });
+            
+            // Journal listener
+            document.getElementById('saveJournalBtn').addEventListener('click', saveJournalEntry);
+
+            // Streak listeners
+            daysSelect.addEventListener('change', (e) => {
+                globalData.streaks.selectedDays = parseInt(e.target.value, 10);
+                saveStreakData();
+            });
+            thresholdInput.addEventListener('change', (e) => {
+                let value = parseInt(e.target.value, 10);
+                if (value < 0) value = 0;
+                if (value > 100) value = 100;
+                globalData.streaks.threshold = value;
+                saveStreakData();
+                renderStreakInfo();
+            });
+            
+            initializeFirebase();
+        });
+    </script>
+</body>
+</html>
