@@ -14,4 +14,5 @@ This is a web-based daily planner and journal designed to help users track their
 * **Charting**: Chart.js for data visualization.
 * **Backend & Database**: Firebase (Authentication and Firestore).
 
-The application is fully responsive and designed to work on various devices. The code is structured to be self-contained within a single HTML file, making it easy to deploy and use.
+## Protoype
+[Daily Planner and Journaling App](https://ultimate-productivity-app.netlify.app/)
